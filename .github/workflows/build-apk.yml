@@ -1,0 +1,49 @@
+
+name: Build NorthEx Flow APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'NorthEx-Flow_Android_Project.zip'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Extract project ZIP
+        run: unzip NorthEx-Flow_Android_Project.zip -d project
+
+      - name: Build APK
+        working-directory: project/NorthEx-Flow
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NorthEx-Flow-APK
+          path: project/NorthEx-Flow/app/build/outputs/apk/debug/app-debug.apk
