@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'NorthExFlow-phase1.zip'
+      - 'NorthEx-Flow_Android_Project.zip'
       - '.github/workflows/build-apk.yml'
 
 permissions:
@@ -12,7 +12,11 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
       - name: Checkout repository
@@ -24,34 +28,34 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+        shell: bash
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: sdkmanager not found"
+            exit 1
+          fi
+
+          yes | bash "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses || true
+
+          bash "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Extract Phase 1 project
-        run: |
-          unzip -q NorthExFlow-phase1.zip -d project
-          PROJECT_DIR="$(dirname "$(find project -name settings.gradle.kts -print -quit)")"
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "settings.gradle.kts not found"
-            exit 1
-          fi
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+      - name: Extract project ZIP
+        run: unzip -o NorthEx-Flow_Android_Project.zip -d project
 
-      - name: Build debug APK
-        run: |
-          cd "$PROJECT_DIR"
-          gradle --no-daemon assembleDebug
+      - name: Build APK
+        working-directory: project/NorthEx-Flow
+        run: gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: NorthEx-Flow-Phase1-APK
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          name: NorthEx-Flow-APK
+          path: project/NorthEx-Flow/app/build/outputs/apk/debug/app-debug.apk
